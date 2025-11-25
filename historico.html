@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Histórico de Movimentações - Controle de Estoque A3</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <header>
+    <div class="logo"><strong>Controle de Estoque A3</strong></div>
+    <nav>
+      <a href="index.html">Dashboard</a>
+      <a href="produtos.html">Produtos</a>
+      <a href="categorias.html">Categorias</a>
+      <a href="movimentacao.html">Movimentação</a>
+      <a href="historico.html">Histórico</a>
+      <a href="relatorios.html">Relatórios</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Histórico de Movimentações</h1>
+    <p class="muted">Consulte todas as movimentações realizadas.</p>
+
+    <div class="filters">
+      <div>
+        <label for="filtro-produto">Produto</label>
+        <select id="filtro-produto"></select>
+      </div>
+      <div>
+        <label for="filtro-tipo">Tipo</label>
+        <select id="filtro-tipo">
+          <option value="todos">Todos</option>
+          <option value="entrada">Entrada</option>
+          <option value="saida">Saída</option>
+        </select>
+      </div>
+      <div style="align-self:flex-end;">
+        <button class="btn btn-secondary" id="btn-filtrar">Aplicar filtro</button>
+      </div>
+    </div>
+
+    <table id="tabela-historico">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Produto</th>
+          <th>Tipo</th>
+          <th>Quantidade</th>
+          <th>Observação</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </main>
+
+  <script type="module" src="js/pages/historicoPage.js"></script>
+</body>
+
+</html>
+

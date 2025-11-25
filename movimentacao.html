@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Movimentação de Estoque - Controle de Estoque A3</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <header>
+    <div class="logo"><strong>Controle de Estoque A3</strong></div>
+    <nav>
+      <a href="index.html">Dashboard</a>
+      <a href="produtos.html">Produtos</a>
+      <a href="categorias.html">Categorias</a>
+      <a href="movimentacao.html">Movimentação</a>
+      <a href="historico.html">Histórico</a>
+      <a href="relatorios.html">Relatórios</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Movimentação de Estoque</h1>
+    <p class="muted">Registre entradas e saídas dos produtos.</p>
+
+    <div id="movimentacao-alert" class="alert" hidden></div>
+
+    <form id="form-movimentacao">
+      <label for="produto">Produto</label>
+      <select id="produto" name="produtoId" required></select>
+
+      <label for="tipo">Tipo</label>
+      <select id="tipo" name="tipo" required>
+        <option value="entrada">Entrada</option>
+        <option value="saida">Saída</option>
+      </select>
+
+      <label for="quantidade">Quantidade</label>
+      <input id="quantidade" name="quantidade" type="number" min="1" required>
+
+      <label for="observacao">Observação</label>
+      <textarea id="observacao" name="observacao" rows="3" placeholder="Opcional"></textarea>
+
+      <button type="submit" class="btn btn-primary">Registrar movimentação</button>
+    </form>
+
+    <section class="section">
+      <h2>Últimas movimentações</h2>
+      <table id="tabela-movimentacoes">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Produto</th>
+            <th>Tipo</th>
+            <th>Quantidade</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script type="module" src="js/pages/movimentacaoPage.js"></script>
+</body>
+
+</html>
+

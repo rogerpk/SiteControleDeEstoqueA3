@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Produtos - Controle de Estoque A3</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <header>
+    <div class="logo"><strong>Controle de Estoque A3</strong></div>
+    <nav>
+      <a href="index.html">Dashboard</a>
+      <a href="produtos.html">Produtos</a>
+      <a href="categorias.html">Categorias</a>
+      <a href="movimentacao.html">Movimentação</a>
+      <a href="historico.html">Histórico</a>
+      <a href="relatorios.html">Relatórios</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="section-header">
+      <h1>Produtos</h1>
+      <p class="muted">Gerencie os itens disponíveis no seu estoque.</p>
+    </div>
+
+    <div class="filters">
+      <div>
+        <label for="filter-nome">Buscar por nome</label>
+        <input type="text" id="filter-nome" placeholder="Digite o nome do produto">
+      </div>
+      <div>
+        <label for="filter-categoria">Categoria</label>
+        <select id="filter-categoria"></select>
+      </div>
+      <div style="align-self: flex-end;">
+        <button class="btn btn-secondary" id="btn-filtrar">Aplicar filtro</button>
+      </div>
+      <div style="align-self: flex-end;">
+        <a class="btn btn-primary" href="novo-produto.html">Novo produto</a>
+      </div>
+    </div>
+
+    <div id="produtos-alert" class="alert" hidden></div>
+
+    <div class="table-wrapper">
+      <table id="tabela-produtos">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Categoria</th>
+            <th>Unidade</th>
+            <th>Preço</th>
+            <th>Qtd.</th>
+            <th>Mín.</th>
+            <th>Máx.</th>
+            <th>Status</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </main>
+
+  <script type="module" src="js/pages/produtosPage.js"></script>
+</body>
+
+</html>
+

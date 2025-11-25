@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editar Produto - Controle de Estoque A3</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <header>
+    <div class="logo"><strong>Controle de Estoque A3</strong></div>
+    <nav>
+      <a href="index.html">Dashboard</a>
+      <a href="produtos.html">Produtos</a>
+      <a href="categorias.html">Categorias</a>
+      <a href="movimentacao.html">Movimentação</a>
+      <a href="historico.html">Histórico</a>
+      <a href="relatorios.html">Relatórios</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Editar Produto</h1>
+    <p class="muted">Atualize os dados do produto selecionado.</p>
+
+    <div id="produto-alert" class="alert" hidden></div>
+
+    <form id="form-produto" hidden>
+      <input type="hidden" id="produto-id">
+
+      <label for="nome">Nome</label>
+      <input id="nome" name="nome" required>
+
+      <label for="unidade">Unidade</label>
+      <input id="unidade" name="unidade" required>
+
+      <label for="preco">Preço</label>
+      <input id="preco" name="preco" type="number" step="0.01" min="0" required>
+
+      <label for="quantidade">Quantidade</label>
+      <input id="quantidade" name="quantidade" type="number" min="0" required>
+
+      <label for="minimo">Quantidade mínima</label>
+      <input id="minimo" name="minimo" type="number" min="0" required>
+
+      <label for="maximo">Quantidade máxima</label>
+      <input id="maximo" name="maximo" type="number" min="0" required>
+
+      <label for="categoria">Categoria</label>
+      <select id="categoria" name="categoriaId" required></select>
+
+      <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+        <button type="submit" class="btn btn-primary">Salvar alterações</button>
+        <a class="btn btn-secondary" href="produtos.html">Cancelar</a>
+      </div>
+    </form>
+  </main>
+
+  <script type="module" src="js/pages/editarProdutoPage.js"></script>
+</body>
+
+</html>
+
