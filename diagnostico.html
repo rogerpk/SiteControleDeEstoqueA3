@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnóstico do Sistema</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 900px; margin: 0 auto; }
+    .test { margin: 10px 0; padding: 10px; border-radius: 5px; }
+    .success { background: #d4edda; color: #155724; }
+    .error { background: #f8d7da; color: #721c24; }
+    .info { background: #d1ecf1; color: #0c5460; }
+    pre { background: #f4f4f4; padding: 10px; overflow-x: auto; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Diagnóstico do Sistema</h1>
+  <p>Verificando todos os componentes...</p>
+  
+  <div id="results"></div>
+
+  <script type="module">
+    const results = document.getElementById('results');
+    
+    function addResult(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `test ${type}`;
+      div.innerHTML = message;
+      results.appendChild(div);
+    }
+
+    // Teste 1: localStorage
+    try {
+      localStorage.setItem('test', '123');
+      localStorage.removeItem('test');
+      addResult('✅ localStorage funcionando', 'success');
+    } catch (e) {
+      addResult('❌ localStorage com problema: ' + e.message, 'error');
+    }
+
+    // Teste 2: Dados existentes
+    try {
+      const cats = localStorage.getItem('estoque_categorias');
+      const prods = localStorage.getItem('estoque_produtos');
+      const movs = localStorage.getItem('estoque_movimentacoes');
+      
+      addResult(`📦 Dados no localStorage:<br>
+        - Categorias: ${cats ? JSON.parse(cats).length : 0} itens<br>
+        - Produtos: ${prods ? JSON.parse(prods).length : 0} itens<br>
+        - Movimentações: ${movs ? JSON.parse(movs).length : 0} itens`, 'info');
+        
+      if (cats) {
+        addResult(`<details><summary>Ver categorias</summary><pre>${JSON.stringify(JSON.parse(cats), null, 2)}</pre></details>`, 'info');
+      }
+    } catch (e) {
+      addResult('⚠️ Erro ao ler dados: ' + e.message, 'error');
+    }
+
+    // Teste 3: Importar módulos
+    addResult('🔄 Testando imports de módulos...', 'info');
+    
+    try {
+      const { seedIfEmpty } = await import('./js/storage/localStorageService.js');
+      addResult('✅ localStorageService.js importado', 'success');
+      
+      try {
+        seedIfEmpty();
+        addResult('✅ seedIfEmpty() executado', 'success');
+      } catch (e) {
+        addResult('❌ Erro ao executar seedIfEmpty: ' + e.message, 'error');
+      }
+    } catch (e) {
+      addResult('❌ Erro ao importar localStorageService: ' + e.message, 'error');
+      console.error('Erro detalhado:', e);
+    }
+
+    try {
+      const Category = await import('./js/models/Category.js');
+      addResult('✅ Category.js importado', 'success');
+    } catch (e) {
+      addResult('❌ Erro ao importar Category: ' + e.message, 'error');
+      console.error('Erro detalhado:', e);
+    }
+
+    try {
+      const catService = await import('./js/services/categoriaService.js');
+      addResult('✅ categoriaService.js importado', 'success');
+      
+      try {
+        const categorias = catService.listCategorias();
+        addResult(`✅ listCategorias() funcionou! ${categorias.length} categorias encontradas`, 'success');
+        
+        // Teste criar categoria
+        addResult('🔄 Testando criar categoria...', 'info');
+        try {
+          const nova = catService.createCategoria({
+            nome: 'Teste Diagnóstico',
+            tamanho: 'Pequeno',
+            embalagem: 'Teste'
+          });
+          addResult(`✅ Categoria criada com sucesso! ID: ${nova.id}`, 'success');
+          
+          // Remover a categoria de teste
+          catService.deleteCategoria(nova.id);
+          addResult('✅ Categoria de teste removida', 'success');
+          
+        } catch (e) {
+          addResult('❌ Erro ao criar categoria: ' + e.message, 'error');
+          console.error('Erro detalhado:', e);
+        }
+        
+      } catch (e) {
+        addResult('❌ Erro ao listar categorias: ' + e.message, 'error');
+        console.error('Erro detalhado:', e);
+      }
+      
+    } catch (e) {
+      addResult('❌ Erro ao importar categoriaService: ' + e.message, 'error');
+      console.error('Erro detalhado:', e);
+    }
+
+    // Teste 4: Verificar se há resíduo de SQLite
+    try {
+      const sqliteDb = localStorage.getItem('estoque_db');
+      if (sqliteDb) {
+        addResult('⚠️ AVISO: Banco SQLite encontrado no localStorage! Isso pode causar conflito.<br><button onclick="localStorage.removeItem(\'estoque_db\'); location.reload()">Remover banco SQLite</button>', 'error');
+      } else {
+        addResult('✅ Nenhum resíduo de SQLite encontrado', 'success');
+      }
+    } catch (e) {
+      addResult('⚠️ Erro ao verificar SQLite: ' + e.message, 'error');
+    }
+
+    addResult('🏁 Diagnóstico concluído! Verifique os erros acima.', 'info');
+  </script>
+</body>
+</html>
+
