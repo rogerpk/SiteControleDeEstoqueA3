@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teste Categoria</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .result { margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Teste de Criação de Categoria</h1>
+  
+  <form id="test-form">
+    <label>Nome: <input type="text" id="nome" value="Teste Categoria" required></label><br><br>
+    <label>Tamanho: <input type="text" id="tamanho" value="Grande" required></label><br><br>
+    <label>Embalagem: <input type="text" id="embalagem" value="Papelão" required></label><br><br>
+    <button type="submit">Criar Categoria</button>
+  </form>
+
+  <div class="result" id="result"></div>
+
+  <h2>Categorias Existentes</h2>
+  <div id="list"></div>
+
+  <script type="module">
+    import { createCategoria, listCategorias } from './js/services/categoriaService.js';
+    import { initializePage } from './js/utils/pageUtils.js';
+
+    function showResult(message, error = false) {
+      const resultDiv = document.getElementById('result');
+      resultDiv.style.background = error ? '#ffcccc' : '#ccffcc';
+      resultDiv.innerHTML = message;
+    }
+
+    function updateList() {
+      try {
+        const categorias = listCategorias();
+        const listDiv = document.getElementById('list');
+        listDiv.innerHTML = '<pre>' + JSON.stringify(categorias, null, 2) + '</pre>';
+      } catch (error) {
+        showResult('Erro ao listar: ' + error.message, true);
+      }
+    }
+
+    // Inicializar
+    try {
+      initializePage();
+      showResult('✅ Página inicializada com sucesso');
+      updateList();
+    } catch (error) {
+      showResult('❌ Erro na inicialização: ' + error.message, true);
+      console.error(error);
+    }
+
+    // Form submit
+    document.getElementById('test-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      try {
+        const payload = {
+          nome: document.getElementById('nome').value,
+          tamanho: document.getElementById('tamanho').value,
+          embalagem: document.getElementById('embalagem').value,
+        };
+
+        console.log('Payload:', payload);
+        
+        const result = createCategoria(payload);
+        
+        console.log('Resultado:', result);
+        showResult('✅ Categoria criada com sucesso! ID: ' + result.id);
+        updateList();
+        
+      } catch (error) {
+        showResult('❌ Erro: ' + error.message, true);
+        console.error('Erro completo:', error);
+      }
+    });
+  </script>
+</body>
+</html>
+
