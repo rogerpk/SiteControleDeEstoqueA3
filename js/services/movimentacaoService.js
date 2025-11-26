@@ -1,149 +1,58 @@
-import db from '../storage/database.js';
-import produtoService from './produtoService.js';
+import Movimentacao from "../models/Movimentacao.js";
+import {
+  STORAGE_KEYS,
+  getCollection,
+  saveCollection,
+  nextId,
+} from "../storage/localStorageService.js";
+import { ajustarQuantidade, getProdutoById } from "./produtoService.js";
 
-const movimentacaoService = {
-  async listar() {
-    await db.init();
-    return db.query(`
-      SELECT 
-        m.*,
-        p.nome as produto_nome,
-        p.unidade as produto_unidade
-      FROM movimentacoes m
-      LEFT JOIN produtos p ON m.produto_id = p.id
-      ORDER BY m.data DESC
-    `);
-  },
+function listarMovimentacoes() {
+  return getCollection(STORAGE_KEYS.movimentacoes)
+    .map((movimentacao) => new Movimentacao(movimentacao))
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
+}
 
-  async buscarPorProduto(produtoId) {
-    await db.init();
-    return db.query(`
-      SELECT 
-        m.*,
-        p.nome as produto_nome,
-        p.unidade as produto_unidade
-      FROM movimentacoes m
-      LEFT JOIN produtos p ON m.produto_id = p.id
-      WHERE m.produto_id = ?
-      ORDER BY m.data DESC
-    `, [produtoId]);
-  },
+function listarMovimentacoesPorProduto(produtoId) {
+  return listarMovimentacoes().filter(
+    (movimentacao) => movimentacao.produtoId === Number(produtoId),
+  );
+}
 
-  async registrarEntrada(produtoId, quantidade, observacao = '') {
-    await db.init();
-    
-    if (quantidade <= 0) {
-      throw new Error('Quantidade deve ser maior que zero');
-    }
-
-    // Buscar produto
-    const produto = await produtoService.buscarPorId(produtoId);
-    if (!produto) {
-      throw new Error('Produto não encontrado');
-    }
-
-    // Atualizar quantidade do produto
-    const novaQuantidade = produto.quantidade + quantidade;
-    db.execute('UPDATE produtos SET quantidade = ? WHERE id = ?', [novaQuantidade, produtoId]);
-
-    // Registrar movimentação
-    const result = db.execute(`
-      INSERT INTO movimentacoes (produto_id, tipo, quantidade, observacao)
-      VALUES (?, 'Entrada', ?, ?)
-    `, [produtoId, quantidade, observacao]);
-
-    // Verificar estoque
-    const produtoAtualizado = await produtoService.buscarPorId(produtoId);
-    const status = await produtoService.verificarEstoque(produtoAtualizado);
-
-    return {
-      movimentacao: {
-        id: result.lastId,
-        produto_id: produtoId,
-        tipo: 'Entrada',
-        quantidade,
-        observacao
-      },
-      produto: produtoAtualizado,
-      status
-    };
-  },
-
-  async registrarSaida(produtoId, quantidade, observacao = '') {
-    await db.init();
-    
-    if (quantidade <= 0) {
-      throw new Error('Quantidade deve ser maior que zero');
-    }
-
-    // Buscar produto
-    const produto = await produtoService.buscarPorId(produtoId);
-    if (!produto) {
-      throw new Error('Produto não encontrado');
-    }
-
-    // Verificar se há estoque suficiente
-    if (produto.quantidade < quantidade) {
-      throw new Error(`Estoque insuficiente. Disponível: ${produto.quantidade} ${produto.unidade}`);
-    }
-
-    // Atualizar quantidade do produto
-    const novaQuantidade = produto.quantidade - quantidade;
-    db.execute('UPDATE produtos SET quantidade = ? WHERE id = ?', [novaQuantidade, produtoId]);
-
-    // Registrar movimentação
-    const result = db.execute(`
-      INSERT INTO movimentacoes (produto_id, tipo, quantidade, observacao)
-      VALUES (?, 'Saída', ?, ?)
-    `, [produtoId, quantidade, observacao]);
-
-    // Verificar estoque
-    const produtoAtualizado = await produtoService.buscarPorId(produtoId);
-    const status = await produtoService.verificarEstoque(produtoAtualizado);
-
-    return {
-      movimentacao: {
-        id: result.lastId,
-        produto_id: produtoId,
-        tipo: 'Saída',
-        quantidade,
-        observacao
-      },
-      produto: produtoAtualizado,
-      status
-    };
-  },
-
-  async deletar(id) {
-    await db.init();
-    
-    // Buscar movimentação antes de deletar
-    const mov = db.query('SELECT * FROM movimentacoes WHERE id = ?', [id]);
-    if (!mov || mov.length === 0) {
-      throw new Error('Movimentação não encontrada');
-    }
-
-    const movimentacao = mov[0];
-
-    // Reverter a quantidade no produto
-    const produto = await produtoService.buscarPorId(movimentacao.produto_id);
-    if (produto) {
-      const ajuste = movimentacao.tipo === 'Entrada' 
-        ? -movimentacao.quantidade 
-        : movimentacao.quantidade;
-      
-      const novaQuantidade = produto.quantidade + ajuste;
-      db.execute('UPDATE produtos SET quantidade = ? WHERE id = ?', [
-        novaQuantidade,
-        movimentacao.produto_id
-      ]);
-    }
-
-    // Deletar movimentação
-    db.execute('DELETE FROM movimentacoes WHERE id = ?', [id]);
-    
-    return true;
+function validarMovimentacao({ produtoId, tipo, quantidade }) {
+  if (!produtoId) throw new Error("Selecione um produto.");
+  if (!["entrada", "saida"].includes(tipo)) {
+    throw new Error("Tipo de movimentação inválido.");
   }
-};
+  const quantidadeNumero = Number(quantidade);
+  if (Number.isNaN(quantidadeNumero) || quantidadeNumero <= 0) {
+    throw new Error("A quantidade deve ser maior que zero.");
+  }
+  const produto = getProdutoById(produtoId);
+  if (!produto) throw new Error("Produto não encontrado.");
+}
 
-export default movimentacaoService;
+function registrarMovimentacao({ produtoId, tipo, quantidade, observacao }) {
+  validarMovimentacao({ produtoId, tipo, quantidade });
+  const quantidadeNumero = Number(quantidade);
+  const delta = tipo === "entrada" ? quantidadeNumero : -quantidadeNumero;
+  const produtoAtualizado = ajustarQuantidade(produtoId, delta);
+
+  const movimentacoes = getCollection(STORAGE_KEYS.movimentacoes);
+  const movimentacao = new Movimentacao({
+    id: nextId(STORAGE_KEYS.movimentacoes),
+    produtoId,
+    tipo,
+    quantidade: quantidadeNumero,
+    observacao,
+    data: new Date().toISOString(),
+  });
+
+  movimentacoes.push(movimentacao);
+  saveCollection(STORAGE_KEYS.movimentacoes, movimentacoes);
+
+  return { movimentacao, produtoAtualizado };
+}
+
+export { listarMovimentacoes, listarMovimentacoesPorProduto, registrarMovimentacao };
+
