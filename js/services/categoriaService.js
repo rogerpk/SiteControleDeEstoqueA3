@@ -1,75 +1,61 @@
-import Categoria from "../models/Category.js";
-import {
-  STORAGE_KEYS,
-  getCollection,
-  saveCollection,
-  nextId,
-} from "../storage/localStorageService.js";
+import db from '../storage/database.js';
 
-function listCategorias() {
-  const categorias = getCollection(STORAGE_KEYS.categorias).map(
-    (categoria) => new Categoria(categoria),
-  );
-  return categorias.sort((a, b) => a.nome.localeCompare(b.nome));
-}
+const categoriaService = {
+  async listar() {
+    await db.init();
+    return db.query('SELECT * FROM categorias ORDER BY nome');
+  },
 
-function getCategoriaById(id) {
-  return listCategorias().find((categoria) => categoria.id === Number(id));
-}
+  async buscarPorId(id) {
+    await db.init();
+    const results = db.query('SELECT * FROM categorias WHERE id = ?', [id]);
+    return results[0] || null;
+  },
 
-function validateCategoriaPayload({ nome, tamanho, embalagem }) {
-  if (!nome?.trim()) {
-    throw new Error("O nome da categoria é obrigatório.");
+  async criar(categoria) {
+    await db.init();
+    
+    // Validações
+    if (!categoria.nome || !categoria.tamanho || !categoria.embalagem) {
+      throw new Error('Todos os campos são obrigatórios');
+    }
+
+    const result = db.execute(
+      'INSERT INTO categorias (nome, tamanho, embalagem) VALUES (?, ?, ?)',
+      [categoria.nome, categoria.tamanho, categoria.embalagem]
+    );
+
+    return { ...categoria, id: result.lastId };
+  },
+
+  async atualizar(id, categoria) {
+    await db.init();
+    
+    // Validações
+    if (!categoria.nome || !categoria.tamanho || !categoria.embalagem) {
+      throw new Error('Todos os campos são obrigatórios');
+    }
+
+    db.execute(
+      'UPDATE categorias SET nome = ?, tamanho = ?, embalagem = ? WHERE id = ?',
+      [categoria.nome, categoria.tamanho, categoria.embalagem, id]
+    );
+
+    return { id, ...categoria };
+  },
+
+  async deletar(id) {
+    await db.init();
+    
+    // Verificar se há produtos usando esta categoria
+    const produtos = db.query('SELECT COUNT(*) as total FROM produtos WHERE categoria_id = ?', [id]);
+    if (produtos[0].total > 0) {
+      throw new Error('Não é possível excluir categoria com produtos associados');
+    }
+
+    db.execute('DELETE FROM categorias WHERE id = ?', [id]);
+    return true;
   }
-  if (!tamanho?.trim()) {
-    throw new Error("O tamanho é obrigatório.");
-  }
-  if (!embalagem?.trim()) {
-    throw new Error("A embalagem é obrigatória.");
-  }
-}
-
-function createCategoria(payload) {
-  validateCategoriaPayload(payload);
-  const categorias = getCollection(STORAGE_KEYS.categorias);
-  const categoria = new Categoria({
-    ...payload,
-    id: nextId(STORAGE_KEYS.categorias),
-  });
-  categorias.push(categoria);
-  saveCollection(STORAGE_KEYS.categorias, categorias);
-  return categoria;
-}
-
-function updateCategoria(id, payload) {
-  validateCategoriaPayload(payload);
-  const categorias = getCollection(STORAGE_KEYS.categorias);
-  const index = categorias.findIndex((categoria) => Number(categoria.id) === Number(id));
-  if (index === -1) throw new Error("Categoria não encontrada.");
-  categorias[index] = { ...categorias[index], ...payload, id: Number(id) };
-  saveCollection(STORAGE_KEYS.categorias, categorias);
-  return new Categoria(categorias[index]);
-}
-
-function deleteCategoria(id) {
-  const produtos = getCollection(STORAGE_KEYS.produtos);
-  const possuiProdutos = produtos.some(
-    (produto) => Number(produto.categoriaId) === Number(id),
-  );
-  if (possuiProdutos) {
-    throw new Error("Não é possível remover categorias em uso por produtos.");
-  }
-
-  const categorias = getCollection(STORAGE_KEYS.categorias);
-  const filtered = categorias.filter((categoria) => Number(categoria.id) !== Number(id));
-  saveCollection(STORAGE_KEYS.categorias, filtered);
-}
-
-export {
-  listCategorias,
-  getCategoriaById,
-  createCategoria,
-  updateCategoria,
-  deleteCategoria,
 };
 
+export default categoriaService;

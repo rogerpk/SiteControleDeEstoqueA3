@@ -1,113 +1,217 @@
-import Produto from "../models/Product.js";
-import {
-  STORAGE_KEYS,
-  getCollection,
-  saveCollection,
-  nextId,
-} from "../storage/localStorageService.js";
+import db from '../storage/database.js';
 
-function listProdutos() {
-  return getCollection(STORAGE_KEYS.produtos).map((produto) => new Produto(produto));
-}
+const produtoService = {
+  async listar() {
+    await db.init();
+    return db.query(`
+      SELECT 
+        p.*,
+        c.nome as categoria_nome
+      FROM produtos p
+      LEFT JOIN categorias c ON p.categoria_id = c.id
+      ORDER BY p.nome
+    `);
+  },
 
-function getProdutoById(id) {
-  return listProdutos().find((produto) => produto.id === Number(id));
-}
+  async buscarPorId(id) {
+    await db.init();
+    const results = db.query(`
+      SELECT 
+        p.*,
+        c.nome as categoria_nome
+      FROM produtos p
+      LEFT JOIN categorias c ON p.categoria_id = c.id
+      WHERE p.id = ?
+    `, [id]);
+    return results[0] || null;
+  },
 
-function validateProdutoPayload(payload) {
-  const required = ["nome", "unidade", "preco", "quantidade", "minimo", "maximo", "categoriaId"];
-  const missing = required.filter((field) => payload[field] === undefined || payload[field] === null || `${payload[field]}`.trim() === "");
-  if (missing.length) {
-    throw new Error("Preencha todos os campos do produto.");
+  async criar(produto) {
+    await db.init();
+    
+    // Validações
+    if (!produto.nome || produto.preco === undefined || produto.quantidade === undefined) {
+      throw new Error('Nome, preço e quantidade são obrigatórios');
+    }
+
+    if (produto.preco < 0) {
+      throw new Error('Preço não pode ser negativo');
+    }
+
+    if (produto.minimo > produto.maximo) {
+      throw new Error('Mínimo não pode ser maior que máximo');
+    }
+
+    const result = db.execute(`
+      INSERT INTO produtos (nome, unidade, preco, quantidade, minimo, maximo, categoria_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [
+      produto.nome,
+      produto.unidade,
+      produto.preco,
+      produto.quantidade,
+      produto.minimo,
+      produto.maximo,
+      produto.categoria_id
+    ]);
+
+    return await this.buscarPorId(result.lastId);
+  },
+
+  async atualizar(id, produto) {
+    await db.init();
+    
+    // Validações
+    if (!produto.nome || produto.preco === undefined || produto.quantidade === undefined) {
+      throw new Error('Nome, preço e quantidade são obrigatórios');
+    }
+
+    if (produto.preco < 0) {
+      throw new Error('Preço não pode ser negativo');
+    }
+
+    if (produto.minimo > produto.maximo) {
+      throw new Error('Mínimo não pode ser maior que máximo');
+    }
+
+    db.execute(`
+      UPDATE produtos 
+      SET nome = ?, unidade = ?, preco = ?, quantidade = ?, minimo = ?, maximo = ?, categoria_id = ?
+      WHERE id = ?
+    `, [
+      produto.nome,
+      produto.unidade,
+      produto.preco,
+      produto.quantidade,
+      produto.minimo,
+      produto.maximo,
+      produto.categoria_id,
+      id
+    ]);
+
+    return await this.buscarPorId(id);
+  },
+
+  async deletar(id) {
+    await db.init();
+    
+    // Deletar movimentações associadas primeiro
+    db.execute('DELETE FROM movimentacoes WHERE produto_id = ?', [id]);
+    db.execute('DELETE FROM produtos WHERE id = ?', [id]);
+    
+    return true;
+  },
+
+  async filtrar(filtros = {}) {
+    await db.init();
+    
+    let sql = `
+      SELECT 
+        p.*,
+        c.nome as categoria_nome
+      FROM produtos p
+      LEFT JOIN categorias c ON p.categoria_id = c.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (filtros.nome) {
+      sql += ' AND p.nome LIKE ?';
+      params.push(`%${filtros.nome}%`);
+    }
+
+    if (filtros.categoria_id) {
+      sql += ' AND p.categoria_id = ?';
+      params.push(filtros.categoria_id);
+    }
+
+    sql += ' ORDER BY p.nome';
+
+    return db.query(sql, params);
+  },
+
+  async verificarEstoque(produto) {
+    if (produto.quantidade < produto.minimo) {
+      return {
+        status: 'baixo',
+        mensagem: `Estoque BAIXO: ${produto.nome} está com ${produto.quantidade} unidades (mínimo: ${produto.minimo})`
+      };
+    }
+
+    if (produto.quantidade > produto.maximo) {
+      return {
+        status: 'alto',
+        mensagem: `Estoque ALTO: ${produto.nome} está com ${produto.quantidade} unidades (máximo: ${produto.maximo})`
+      };
+    }
+
+    return {
+      status: 'ok',
+      mensagem: `Estoque OK: ${produto.nome} está com ${produto.quantidade} unidades`
+    };
+  },
+
+  async listarForaDoRange() {
+    await db.init();
+    return db.query(`
+      SELECT 
+        p.*,
+        c.nome as categoria_nome,
+        CASE 
+          WHEN p.quantidade < p.minimo THEN 'baixo'
+          WHEN p.quantidade > p.maximo THEN 'alto'
+        END as status
+      FROM produtos p
+      LEFT JOIN categorias c ON p.categoria_id = c.id
+      WHERE p.quantidade < p.minimo OR p.quantidade > p.maximo
+      ORDER BY p.nome
+    `);
+  },
+
+  async relatorioBalanco() {
+    await db.init();
+    return db.query(`
+      SELECT 
+        p.*,
+        c.nome as categoria_nome,
+        (p.quantidade * p.preco) as valor_total
+      FROM produtos p
+      LEFT JOIN categorias c ON p.categoria_id = c.id
+      ORDER BY p.nome
+    `);
+  },
+
+  async relatorioPorCategoria() {
+    await db.init();
+    return db.query(`
+      SELECT 
+        c.nome as categoria,
+        COUNT(p.id) as quantidade
+      FROM categorias c
+      LEFT JOIN produtos p ON c.id = p.categoria_id
+      GROUP BY c.id, c.nome
+      ORDER BY c.nome
+    `);
+  },
+
+  async reajustarPreco(id, percentual) {
+    await db.init();
+    
+    const produto = await this.buscarPorId(id);
+    if (!produto) {
+      throw new Error('Produto não encontrado');
+    }
+
+    const novoPreco = produto.preco * (1 + percentual / 100);
+    
+    if (novoPreco < 0) {
+      throw new Error('O novo preço não pode ser negativo');
+    }
+
+    db.execute('UPDATE produtos SET preco = ? WHERE id = ?', [novoPreco, id]);
+    
+    return await this.buscarPorId(id);
   }
-
-  const preco = Number(payload.preco);
-  const quantidade = Number(payload.quantidade);
-  if (preco < 0 || Number.isNaN(preco)) {
-    throw new Error("O preço deve ser um número positivo.");
-  }
-  if (quantidade < 0 || Number.isNaN(quantidade)) {
-    throw new Error("A quantidade deve ser um número positivo.");
-  }
-
-  const minimo = Number(payload.minimo);
-  const maximo = Number(payload.maximo);
-  if (minimo > maximo) {
-    throw new Error("O mínimo não pode ser maior que o máximo.");
-  }
-
-  const categorias = getCollection(STORAGE_KEYS.categorias);
-  const existsCategoria = categorias.some(
-    (categoria) => Number(categoria.id) === Number(payload.categoriaId),
-  );
-  if (!existsCategoria) {
-    throw new Error("Categoria inválida.");
-  }
-}
-
-function createProduto(payload) {
-  validateProdutoPayload(payload);
-  const produtos = getCollection(STORAGE_KEYS.produtos);
-  const produto = new Produto({
-    ...payload,
-    id: nextId(STORAGE_KEYS.produtos),
-  });
-  produtos.push(produto);
-  saveCollection(STORAGE_KEYS.produtos, produtos);
-  return produto;
-}
-
-function updateProduto(id, payload) {
-  validateProdutoPayload(payload);
-  const produtos = getCollection(STORAGE_KEYS.produtos);
-  const index = produtos.findIndex((produto) => Number(produto.id) === Number(id));
-  if (index === -1) throw new Error("Produto não encontrado.");
-  produtos[index] = { ...produtos[index], ...payload, id: Number(id) };
-  saveCollection(STORAGE_KEYS.produtos, produtos);
-  return new Produto(produtos[index]);
-}
-
-function deleteProduto(id) {
-  const produtos = getCollection(STORAGE_KEYS.produtos);
-  const filtered = produtos.filter((produto) => Number(produto.id) !== Number(id));
-  saveCollection(STORAGE_KEYS.produtos, filtered);
-
-  const movimentacoes = getCollection(STORAGE_KEYS.movimentacoes);
-  const restantes = movimentacoes.filter(
-    (movimentacao) => Number(movimentacao.produtoId) !== Number(id),
-  );
-  saveCollection(STORAGE_KEYS.movimentacoes, restantes);
-}
-
-function filterProdutos({ nome = "", categoriaId = "todos" } = {}) {
-  return listProdutos().filter((produto) => {
-    const matchNome = produto.nome.toLowerCase().includes(nome.toLowerCase());
-    const matchCategoria =
-      categoriaId === "todos" || produto.categoriaId === Number(categoriaId);
-    return matchNome && matchCategoria;
-  });
-}
-
-function ajustarQuantidade(id, delta) {
-  const produtos = getCollection(STORAGE_KEYS.produtos);
-  const index = produtos.findIndex((produto) => Number(produto.id) === Number(id));
-  if (index === -1) throw new Error("Produto não encontrado.");
-  const novaQuantidade = Number(produtos[index].quantidade) + Number(delta);
-  if (novaQuantidade < 0) {
-    throw new Error("Quantidade insuficiente para realizar a operação.");
-  }
-  produtos[index].quantidade = novaQuantidade;
-  saveCollection(STORAGE_KEYS.produtos, produtos);
-  return new Produto(produtos[index]);
-}
-
-export {
-  listProdutos,
-  getProdutoById,
-  filterProdutos,
-  createProduto,
-  updateProduto,
-  deleteProduto,
-  ajustarQuantidade,
 };
 
+export default produtoService;
