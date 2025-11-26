@@ -38,9 +38,30 @@ header {
   z-index: 10;
 }
 
+nav {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 nav a {
-  margin-right: 1rem;
+  display: inline-block;
+  padding: 0.65rem 1.25rem;
+  background: var(--primary);
+  color: var(--white);
+  border-radius: 0.5rem;
   font-weight: 600;
+  text-decoration: none;
+  transition: background 0.2s ease;
+  white-space: nowrap;
+}
+
+nav a:hover {
+  background: var(--primary-dark);
+}
+
+nav a:active {
+  transform: scale(0.98);
 }
 
 main {
@@ -244,11 +265,20 @@ textarea {
   header {
     flex-direction: column;
     gap: 0.75rem;
+    padding: 1rem;
   }
 
   nav {
     display: flex;
     flex-wrap: wrap;
+    gap: 0.5rem;
+    width: 100%;
+    justify-content: center;
+  }
+
+  nav a {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
   }
 
   main {
